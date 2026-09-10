@@ -354,6 +354,7 @@ class Platform(Enum):
     QQBOT = "qqbot"
     YUANBAO = "yuanbao"
     RELAY = "relay"  # generic relay adapter fronted by the connector (EXPERIMENTAL)
+    DESKTOP = "desktop"  # Desktop delivery session for cron output
     @classmethod
     def _missing_(cls, value):
         """Accept unknown platform names only for known plugin adapters.

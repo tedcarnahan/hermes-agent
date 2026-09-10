@@ -490,8 +490,14 @@ export function ChatSidebar({
   const scopedSessions = useMemo(() => {
     const pool = showArchived ? archivedSessions : sessions
 
-    return filterSessionsByProfileScope(pool, profileScope)
-  }, [sessions, archivedSessions, showArchived, profileScope])
+    // Include cron desktop-delivery sessions in the main recents list alongside
+    // regular local sessions.  These are per-job persistent chats created by
+    // jobs with desktop_delivery_enabled=True or deliver=desktop-session.
+    const cronDesktopSessions = cronSessions.filter(
+      s => s.source === 'cron_desktop'
+    )
+    return filterSessionsByProfileScope([...pool, ...cronDesktopSessions], profileScope)
+  }, [sessions, cronSessions, archivedSessions, showArchived, profileScope])
 
   // One predicate for the status/project filters, so the flat list and the
   // project lanes narrow by the same rule. A project lane holds rows the loaded

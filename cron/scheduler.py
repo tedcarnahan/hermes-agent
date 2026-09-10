@@ -2543,6 +2543,20 @@ def _resolve_single_delivery_target(job: dict, deliver_value: str) -> Optional[d
                 }
         return None
 
+    # desktop-session[:<job-name>] — deliver to a per-job Desktop chat.
+    # The bare form auto-names from the job id; the explicit form sets the
+    # session title to the given name.
+    if deliver_value.lower().startswith("desktop-session"):
+        session_name = None
+        if ":" in deliver_value:
+            session_name = deliver_value.split(":", 1)[1].strip()
+        return {
+            "platform": "desktop-session",
+            "chat_id": session_name or str(job.get("id", "?")),
+            "thread_id": None,
+            "_resolved_from": "desktop_session",
+        }
+
     if ":" in deliver_value:
         platform_name, rest = deliver_value.split(":", 1)
         platform_key = platform_name.lower()
@@ -3066,7 +3080,7 @@ def _is_channel_dm_topic(
     return is_channel
 
 
-def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Optional[str]:
+def _deliver_result(job: dict, content: str, adapters=None, loop=None, session_db=None) -> Optional[str]:
     """
     Deliver job output to the configured target(s) (origin chat, specific platform, etc.).
 
@@ -3101,6 +3115,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
 
     from tools.send_message_tool import _send_to_platform
     from gateway.config import load_gateway_config, Platform
+    from cron.desktop_delivery import _deliver_to_desktop_session
 
     # Optionally wrap the content with a header/footer so the user knows this
     # is a cron delivery.  Wrapping is on by default; set cron.wrap_response: false
@@ -3187,6 +3202,20 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
         platform_name = target["platform"]
         chat_id = target["chat_id"]
         thread_id = target.get("thread_id")
+
+        # desktop-session targets don't ride a gateway adapter: the output
+        # gets written to a per-job persistent Desktop delivery session via
+        # the SessionDB (same DB the desktop client queries). Handled before
+        # the Platform enum below, which knows nothing about this
+        # pseudo-platform. The target's chat_id holds the session name hint
+        # (the job id by default).
+        if platform_name == "desktop-session":
+            desktop_error = _deliver_to_desktop_session(
+                job, delivery_content, session_db,
+            )
+            if desktop_error:
+                delivery_errors.append(desktop_error)
+            continue
 
         # bot-chat targets don't ride a gateway adapter: the output becomes a
         # real inbound turn in the target profile's canonical Bot Chat via the
@@ -3920,6 +3949,24 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
     if policy_drop_errors:
         # Filter-time drops apply to every target; report them once.
         delivery_errors.extend(policy_drop_errors)
+
+    # Desktop delivery via per-job field (desktop_delivery_enabled=True): deliver
+    # the output to the job's persistent Desktop session in addition to whatever
+    # the deliver= targets resolved.  Skipped when the deliver= targets already
+    # included a desktop-session target (no double-send).
+    if (
+        job.get("desktop_delivery_enabled")
+        and not any(
+            t.get("platform") == "desktop-session"
+            for t in targets
+        )
+    ):
+        desktop_error = _deliver_to_desktop_session(
+            job, delivery_content, session_db,
+        )
+        if desktop_error:
+            delivery_errors.append(desktop_error)
+
     if delivery_errors:
         return "; ".join(delivery_errors)
     return None

@@ -442,9 +442,10 @@ def get_profiles_sessions_sidebar(
             s["pinned"] = bool(s.get("pinned"))
         return rows
 
-    def _slice(db, *, source=None, exclude=None, cap):
+    def _slice(db, *, source=None, sources=None, exclude=None, cap):
         return db.list_sessions_rich(
             source=source,
+            sources=sources,
             exclude_sources=exclude or None,
             limit=cap,
             offset=0,
@@ -492,7 +493,7 @@ def get_profiles_sessions_sidebar(
                     # window is a page, and a total that shrank when you scrolled
                     # would be worse than no total at all.
                     "usage": db.usage_totals(),
-                    "cron": _slice(db, source="cron", cap=cron_cap),
+                    "cron": _slice(db, sources=["cron", "cron_desktop"], cap=cron_cap),
                     "messaging": _slice(
                         db,
                         exclude=messaging_exclude_list,

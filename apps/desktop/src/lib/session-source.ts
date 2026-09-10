@@ -5,6 +5,7 @@ const SOURCE_LABELS: Record<string, string> = {
   bluebubbles: 'iMessage',
   cli: 'CLI',
   codex: 'Codex',
+  cron_desktop: 'Cron',
   desktop: 'Desktop',
   discord: 'Discord',
   email: 'Email',

@@ -2204,6 +2204,7 @@ def create_job(
     monitor_script: Optional[str] = None,
     monitor_url: Optional[str] = None,
     reasoning_effort: Optional[str] = None,
+    desktop_delivery_enabled: bool = False,
 ) -> Dict[str, Any]:
     """
     Create a new cron job.
@@ -2271,6 +2272,10 @@ def create_job(
                 exactly like config-set effort. Inert with ``no_agent=True``
                 (no LLM call to configure). None/empty = unset (job follows
                 config resolution, pre-existing behavior).
+        desktop_delivery_enabled: When True, job output is also delivered
+                to a persistent per-job Desktop delivery session (in addition
+                to the normal deliver target).  The delivery session accumulates
+                output across runs and appears in the Desktop sidebar.
 
     Returns:
         The created job dict
@@ -2306,6 +2311,7 @@ def create_job(
     normalized_no_agent = bool(no_agent)
     normalized_attach = attach_to_session if isinstance(attach_to_session, bool) else None
     normalized_reasoning_effort = _normalize_reasoning_effort(reasoning_effort)
+    normalized_desktop_delivery = bool(desktop_delivery_enabled)
     normalized_monitor_script = str(monitor_script).strip() if isinstance(monitor_script, str) else None
     normalized_monitor_script = normalized_monitor_script or None
     normalized_monitor_url = str(monitor_url).strip() if isinstance(monitor_url, str) else None
@@ -2422,6 +2428,10 @@ def create_job(
     # absent key = job follows config resolution (pre-feature behavior).
     if normalized_reasoning_effort is not None:
         job["reasoning_effort"] = normalized_reasoning_effort
+    # Only persist desktop_delivery_enabled when True, so existing jobs and
+    # the common case stay byte-identical (absent key => default False).
+    if normalized_desktop_delivery:
+        job["desktop_delivery_enabled"] = normalized_desktop_delivery
 
     with _jobs_lock():
         jobs = load_jobs()

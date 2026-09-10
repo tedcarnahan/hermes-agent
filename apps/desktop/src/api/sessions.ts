@@ -210,7 +210,7 @@ async function listSidebarSessionsLegacy(req: SidebarSessionsRequest): Promise<S
     listAllProfileSessions(req.recentsLimit, 1, 'exclude', 'recent', req.recentsProfile, {
       excludeSources: req.recentsExclude
     }),
-    listAllProfileSessions(req.cronLimit, 1, 'exclude', 'recent', req.recentsProfile, { source: 'cron' }),
+    listAllProfileSessions(req.cronLimit, 1, 'exclude', 'recent', req.recentsProfile, { source: 'cron,cron_desktop' }),
     listAllProfileSessions(req.messagingLimit, 1, 'exclude', 'recent', req.recentsProfile, {
       excludeSources: req.messagingExclude
     })
