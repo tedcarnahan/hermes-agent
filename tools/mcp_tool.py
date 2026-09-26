@@ -318,7 +318,14 @@ _MCP_LOG_LEVEL_MAP = {
 
 _DEFAULT_CONNECT_TIMEOUT = 60    # seconds for initial connection per server
 _MAX_RECONNECT_RETRIES = 5
-_MAX_INITIAL_CONNECT_RETRIES = 3 # retries for the very first connection attempt
+# Retries for the very first connection attempt. This ladder is what rides out a
+# host that is awake but not yet resolving: macOS clamshell/dark-wake brings the
+# interfaces up tens of seconds before DNS answers again (measured 0-67s across
+# 166 park events on this host, resolver #1 = Tailscale MagicDNS on utun8).
+# Backoff is 1,2,4,8,16,32,60s (~2 min nominal, +/-20% jitter), so the ladder
+# now spans a realistic post-wake DNS gap instead of parking after ~7s. Costs one
+# extra ~2 min of retrying before a genuinely dead server is parked.
+_MAX_INITIAL_CONNECT_RETRIES = 8
 _MAX_BACKOFF_SECONDS = 60
 _RECYCLED_RECONNECT_TIMEOUT = 15.0
 # Parked servers (tools deregistered) self-probe on this cadence: nothing else can revive them.
