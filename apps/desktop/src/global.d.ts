@@ -123,6 +123,11 @@ declare global {
       // reply). Resolves true for the first window to claim a key, false for
       // peers — so N open windows don't all fire the same cue.
       claimAmbientCue: (key: string) => Promise<boolean>
+      // Unread-session count for the app icon (the red Dock badge on macOS).
+      // Cosmetic, one-way: the primary window is the only writer, and 0 clears
+      // it. Optional so a renderer built against a newer preload never assumes
+      // the bridge is there.
+      setUnreadBadge?: (count: number) => void
       // Renderer-drawn min/max/close for WSLg (`custom` true there only), sent
       // over hermes:window-control; Electron/OS chrome owns them elsewhere.
       windowControls: {

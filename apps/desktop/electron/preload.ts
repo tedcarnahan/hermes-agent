@@ -85,6 +85,10 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     return () => ipcRenderer.removeListener('hermes:browser-popout:closed', listener)
   },
   claimAmbientCue: key => ipcRenderer.invoke('hermes:ambient:claim', key),
+  // Unread-session count for the app icon (Dock badge on macOS). Fire-and-
+  // forget: a cosmetic label never needs a round trip. The primary window is
+  // the only writer (see src/store/dock-badge.ts).
+  setUnreadBadge: (count: number) => ipcRenderer.send('hermes:badge:set-unread', count),
   windowControls: {
     custom: customWindowControlsEnabled(),
     minimize: () => ipcRenderer.send('hermes:window-control', 'minimize'),

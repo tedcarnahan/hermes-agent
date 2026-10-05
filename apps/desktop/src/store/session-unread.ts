@@ -18,6 +18,9 @@ import {
   sessionPinId
 } from './session'
 import { isBrowserWindow, isSecondaryWindow } from './windows'
+// Side-effect import: keeps the Dock badge (app icon) in step with the unread
+// atom this module owns. See dock-badge.ts for the one-writer rule.
+import './dock-badge'
 
 /**
  * PERSISTED UNREAD ("finished — unread" green dot) — the durable layer under

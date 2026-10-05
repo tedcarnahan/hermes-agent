@@ -13923,6 +13923,32 @@ ipcMain.on('hermes:wake-indicator:set', (_event, state) => {
   wakeIndicatorController.setState(state)
 })
 
+// --- Unread badge (app icon / Dock) ----------------------------------------
+// The PRIMARY window owns the count (its unread-session atom, the same number
+// the sidebar paints) and pushes it here on every change; other windows never
+// write it. `app.setBadgeCount` is the Dock badge on macOS, a Unity-launcher
+// badge on Linux, and a no-op returning false on Windows, so no platform
+// branch is needed. Cosmetic and one-way: nothing is persisted, and `0`
+// clears the badge.
+// Starts at -1 so the FIRST push always logs, even when it is zero: that boot
+// line is the receipt that the renderer→preload→main path is live.
+let badgeCount = -1
+ipcMain.on('hermes:badge:set-unread', (_event, count) => {
+  const next = Number(count)
+  const applied = Number.isFinite(next) && next > 0 ? Math.trunc(next) : 0
+
+  // Log transitions only: the badge is pushed on every session-list refresh,
+  // and a steady count is not news.
+  if (applied !== badgeCount) {
+    rememberLog(`[badge] unread sessions -> ${applied}`)
+  }
+
+  badgeCount = applied
+  app.setBadgeCount(applied)
+})
+
+ipcMain.handle('hermes:badge:get-unread', () => (badgeCount > 0 ? badgeCount : 0))
+
 // --- Text size (zoom) -------------------------------------------------------
 // The settings UI drives the same clamped zoom scale as the Ctrl/Cmd
 // shortcuts and the View menu. Reads and writes target the asking window.
