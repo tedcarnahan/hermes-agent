@@ -471,6 +471,13 @@ class RuntimeSessionStore(RuntimeSessionCompressionMixin, RuntimeSessionLifecycl
         self.patch_session_model_config(session_id, {key: update(self.get_session_model_config_value(session_id, key))})
         return session_id
 
+    def patch_model_config_at_tip(self, session_id, patch):
+        # The row a worker owns IS the live tip of its conversation; a rotation hands it a fresh owner,
+        # so there is no ended parent to resolve here.
+        self._session(session_id)
+        self.patch_session_model_config(session_id, dict(patch))
+        return session_id
+
     def session_ids_with_model_config_key(self, key):
         # The scan a worker can answer: its own session (it may read no other row).
         sid = self.scope['session_id']

@@ -267,6 +267,20 @@ class SessionTitlesConfigMixin:
         if row is not None:
             self._set_config(row, self._merged(row["model_config"], patch))
 
+    def patch_model_config_at_tip(self, session_id: SessionId,
+                                  patch: Mapping[str, Optional[JsonValue]]) -> SessionId:
+        scope = self._backend.scope
+        if not session_id or not patch:
+            return session_id
+        from .lineage import compression_tip
+
+        with self._backend._lock:
+            tip = compression_tip(self._backend, scope, str(session_id))
+            row = self._table(scope).get(tip)
+            if row is not None:
+                self._set_config(row, self._merged(row["model_config"], patch))
+            return SessionId(tip)
+
     def advance_onboarding_run(self, session_id: SessionId, event: Any, *, now: float) -> OnboardingAdvance:
         scope = self._backend.scope
         from session_rules.onboarding_flow import Facts, apply, is_active

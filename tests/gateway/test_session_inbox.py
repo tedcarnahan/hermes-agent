@@ -223,3 +223,25 @@ def test_default_deliver_is_inbox_only_from_a_desktop_chat_that_is_not_bot_chat(
     monkeypatch.setattr(session_policy, 'active_policy', lambda: SimpleNamespace(source=source))
     monkeypatch.setattr(inbox, '_in_bot_chat', lambda: title == 'Bot Chat')
     assert inbox.default_deliver(given) == (expected if expected is not None else given)
+
+
+def test_filing_writes_the_marker_at_the_live_tip(owner, tmp_path):
+    """A run that compressed continues on a child. Filing at the id the run started with would put the
+    scheduled output on the truncated parent; the write must land on the tip and say which row it used."""
+    from cron.inbox import INBOX_MARKER
+    from persistence.conversation.lineage import CompressionChild
+    from persistence.conversation.messages import NewMessage
+    from persistence.conversation.sessions import SessionId
+
+    sid = _filed_run(owner, tmp_path, ended=False)
+    child = f'{sid}-2'
+    owner.persistence.messages.append(sid, NewMessage.from_live({'role': 'user', 'content': 'standup'}))
+    owner.persistence.lineage.publish_compression_child(
+        sid, CompressionChild(session_id=SessionId(child), source='cron'),
+        [NewMessage.from_live({'role': 'user', 'content': 'standup'})], require_compression_lease=False)
+    owner.persistence.sessions.patch_model_config(sid, {INBOX_MARKER: None})  # clear what _filed_run stamped
+    tip = owner.persistence.sessions.patch_model_config_at_tip(
+        sid, {INBOX_MARKER: {'job_id': 'job-1', 'job_name': 'standup', 'delivered_at': 2.0, 'preview': 'x'}})
+    assert tip == child
+    assert owner.persistence.sessions.get(child).model_config.get(INBOX_MARKER)['delivered_at'] == 2.0
+    assert INBOX_MARKER not in (owner.persistence.sessions.get(sid).model_config or {})

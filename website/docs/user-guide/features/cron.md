@@ -727,6 +727,10 @@ unread badge and a notification when a new result lands. Nothing is copied: the 
 the run session, and its read state is the session's normal unread watermark on the backend,
 so every client sees the same unread items.
 
+**A run that compressed is filed at its live tip.** Rotation gives the conversation a continuation
+child and carries the inbox marker to it, so the item you open is the transcript that produced the
+preview, not the truncated segment the fire started in.
+
 **Default.** A job created from a Desktop or Web chat that is not the canonical Bot Chat, with
 `deliver` omitted or `origin`, delivers to `inbox`. Before this, such a job wrote its result
 into the creating chat as a note. Jobs created in the Bot Chat keep Bot Chat delivery, and

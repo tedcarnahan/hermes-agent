@@ -75,10 +75,13 @@ def file_run(job: dict, content: str) -> Optional[str]:
     if not session_id:
         return "inbox: this run has no session to file"
     preview = " ".join(str(content or "").split())[:PREVIEW_CHARS]
-    store.sessions.patch_model_config(session_id, {INBOX_MARKER: {
+    # Write at the conversation's LIVE TIP, not at the id the run started with: a run that compressed
+    # continues on a child, and the scheduled output belongs to the transcript the user will open. The
+    # tip is returned so the unread watermark lands on the same row.
+    tip = store.sessions.patch_model_config_at_tip(session_id, {INBOX_MARKER: {
         "job_id": job.get("id"), "job_name": job.get("name") or job.get("id"),
         "delivered_at": time.time(), "preview": preview}})
-    store.sessions.set_read(session_id, False)
+    store.sessions.set_read(tip, False)
     return None
 
 

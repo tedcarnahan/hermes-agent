@@ -58,7 +58,12 @@ _CHAIN_CAP = 1000
 
 # ``_chat_adopted`` (``gateway.session_lifecycle.CHAT_ADOPTED_MARKER``): a delegate row the user resumed a
 # chat onto stays that chat's conversation past a rotation, or the route guard rejects the new tip.
-_CONVERSATION_MODEL_CONFIG_KEYS = ("onboarding_run", "prompt_refresh_epoch", "_chat_adopted")
+_CONVERSATION_MODEL_CONFIG_KEYS = ("onboarding_run", "prompt_refresh_epoch", "_chat_adopted",
+                                   # The Inbox's item marker and its continued flag (cron/inbox.py):
+                                   # conversation-level provenance. Without these a continued item
+                                   # would leave the Inbox the moment its chat compressed, or re-badge
+                                   # as unread on the rotation.
+                                   "cron_inbox", "cron_inbox_continued")
 
 
 def _walk_compression_chain(session_id: str, step) -> list[str]:

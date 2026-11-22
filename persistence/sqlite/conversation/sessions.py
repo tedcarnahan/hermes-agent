@@ -523,6 +523,20 @@ class SQLiteSessionRepository:
         with refusals(holder, session_id):
             patch_session_model_config(holder, session_id, dict(patch))
 
+    def patch_model_config_at_tip(self, session_id: SessionId, patch: Mapping[str, Any]) -> SessionId:
+        holder = self._store.holder()
+        tip = session_id
+        if not session_id or not patch:
+            return SessionId(tip)
+        with refusals(holder, session_id):
+            for key, value in patch.items():
+                # One transaction per key, each resolving the tip inside it: a rotation published
+                # between keys cannot split the patch across segments.
+                written = update_conversation_model_config_value(holder, session_id, key, lambda _current, v=value: v)
+                if written is not None:
+                    tip = written
+        return SessionId(tip)
+
     def advance_onboarding_run(self, session_id: SessionId, event: Any, *, now: float) -> OnboardingAdvance:
         holder = self._store.holder()
         outcome: dict[str, Any] = {}
