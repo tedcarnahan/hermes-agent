@@ -478,6 +478,11 @@ class RuntimeSessionStore(RuntimeSessionCompressionMixin, RuntimeSessionLifecycl
         self.patch_session_model_config(session_id, dict(patch))
         return session_id
 
+    def recent_model_config_key_ids(self, key, limit):
+        # The scan a worker can answer: its own session (it may read no other row).
+        sid = self.scope['session_id']
+        return [sid] if limit > 0 and self.get_session_model_config_value(sid, key) is not None else []
+
     def session_ids_with_model_config_key(self, key):
         # The scan a worker can answer: its own session (it may read no other row).
         sid = self.scope['session_id']

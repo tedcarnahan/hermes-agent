@@ -1160,6 +1160,15 @@ class SessionRepository(Protocol):
         """Ids whose ``model_config`` carries ``key``, newest ``started_at`` first."""
         ...
 
+    def recent_model_config_key_ids(self, key: str, limit: int) -> tuple[SessionId, ...]:
+        """The newest *limit* LIVE sessions whose ``model_config`` carries ``key``, newest first.
+
+        Live excludes a compressed root: its continuation child holds the conversation (and carries the
+        key forward), so a listing built on this cannot return the same item twice. The bounded form
+        keeps a marker-backed listing from growing with history.
+        """
+        ...
+
     def prompt_refresh_epoch(self, session_id: SessionId) -> int:
         """The newest refresh epoch that applies to the session: the larger of the profile-wide epoch and the session's own, 0 when neither was requested."""
         ...

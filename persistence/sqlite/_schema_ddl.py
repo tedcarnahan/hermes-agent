@@ -432,6 +432,16 @@ CREATE INDEX IF NOT EXISTS idx_sessions_source ON sessions(source);
 CREATE INDEX IF NOT EXISTS idx_sessions_source_id ON sessions(source, id);
 CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at DESC);
+-- The Inbox listing key (cron/inbox.py): the newest LIVE sessions carrying the marker. A JSON marker
+-- has no column to index, so the index sorts on started_at and makes the marker the partial
+-- predicate: the planner walks only the keyed rows instead of scanning sessions, and a compressed root
+-- (end_reason='compression') drops out here as well as in the query. The predicate expression must
+-- stay byte-identical to _sql_json_extract('model_config', '$.cron_inbox') in
+-- recent_model_config_key_ids, or SQLite cannot use the index.
+CREATE INDEX IF NOT EXISTS idx_sessions_model_config_key_live
+    ON sessions(started_at DESC)
+    WHERE json_extract((CASE WHEN json_valid(model_config) THEN model_config ELSE json_object() END), '$.cron_inbox') IS NOT NULL
+      AND COALESCE(end_reason, '') != 'compression';
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, timestamp);
 CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id, id);
 -- Partial index for the Insights assistant tool-call scan

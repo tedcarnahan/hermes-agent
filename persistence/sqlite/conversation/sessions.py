@@ -36,7 +36,7 @@ from ._store.core import is_kanban_owned_session, retag_kanban_worker_sessions
 from ._store.gateway import list_gateway_sessions
 from ._store.local import POLICY_PREFIX
 from ._store.local_migration import LEGACY_PREFIX
-from ._store.model_config import session_ids_with_model_config_key, update_conversation_model_config_value
+from ._store.model_config import recent_model_config_key_ids, session_ids_with_model_config_key, update_conversation_model_config_value
 from ._store.portability import (
     cron_run_identity, distinct_session_cwds, get_session_rich_row, list_cron_job_runs, list_skill_scaffolded_sessions,
 )
@@ -767,6 +767,11 @@ class SQLiteSessionRepository:
         holder = self._store.holder()
         with refusals(holder):
             return _ids(session_ids_with_model_config_key(holder, key))
+
+    def recent_model_config_key_ids(self, key: str, limit: int) -> tuple[SessionId, ...]:
+        holder = self._store.holder()
+        with refusals(holder):
+            return _ids(recent_model_config_key_ids(holder, key, limit))
 
     def prompt_refresh_epoch(self, session_id: SessionId) -> int:
         holder = self._store.holder()

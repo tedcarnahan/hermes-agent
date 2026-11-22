@@ -245,3 +245,24 @@ def test_filing_writes_the_marker_at_the_live_tip(owner, tmp_path):
     assert tip == child
     assert owner.persistence.sessions.get(child).model_config.get(INBOX_MARKER)['delivered_at'] == 2.0
     assert INBOX_MARKER not in (owner.persistence.sessions.get(sid).model_config or {})
+
+
+@pytest.mark.asyncio
+async def test_a_compressed_run_is_listed_once_at_its_live_tip(owner, tmp_path):
+    """The rotation carries the marker to the continuation child; the ended root must not appear as a
+    second, stale Inbox item."""
+    from cron.inbox import INBOX_MARKER
+    from gateway.session_inbox import list_items
+    from persistence.conversation.lineage import CompressionChild
+    from persistence.conversation.messages import NewMessage
+    from persistence.conversation.sessions import SessionId
+
+    sid = _filed_run(owner, tmp_path, ended=False)
+    child = f'{sid}-2'
+    owner.persistence.messages.append(sid, NewMessage.from_live({'role': 'user', 'content': 'standup'}))
+    owner.persistence.lineage.publish_compression_child(
+        sid, CompressionChild(session_id=SessionId(child), source='cron'),
+        [NewMessage.from_live({'role': 'user', 'content': 'standup'})], require_compression_lease=False)
+    assert INBOX_MARKER in owner.persistence.sessions.get(child).model_config
+    listed = await list_items(_connection(owner), None, {})
+    assert [item['session_id'] for item in listed['items']] == [child]

@@ -314,6 +314,16 @@ class SessionTitlesConfigMixin:
         rows.sort(key=lambda row: (row["started_at"], row["session_id"]), reverse=True)
         return tuple(SessionId(row["session_id"]) for row in rows)
 
+    def recent_model_config_key_ids(self, key: str, limit: int) -> tuple[SessionId, ...]:
+        scope = self._backend.scope
+        if limit <= 0:
+            return ()
+        rows = [row for row in self._table(scope).values()
+                if row["model_config"].get(key) is not None
+                and (row.get("end_reason") or "") != "compression"]
+        rows.sort(key=lambda row: (row["started_at"], row["session_id"]), reverse=True)
+        return tuple(SessionId(row["session_id"]) for row in rows[:limit])
+
     def update_model(
         self,
         session_id: SessionId,
