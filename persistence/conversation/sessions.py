@@ -945,6 +945,18 @@ class SessionRepository(Protocol):
         """Merge ``patch`` into ``model_config``; ``None`` removes a key. No-op for an empty id, an empty patch or a missing row."""
         ...
 
+    def patch_model_config_at_tip(self, session_id: SessionId,
+                                  patch: Mapping[str, Optional[JsonValue]]) -> SessionId:
+        """Merge ``patch`` into the LIVE TIP's ``model_config`` and return that tip; ``None`` removes a key.
+
+        A compression rotation carries the parent's keys to the continuation child, so a marker written
+        on an ended segment points at a truncated transcript and, after a later rotation, exists on two
+        rows. This resolves the tip inside its write transaction, the same rule the lineage-aware reads
+        follow (``project_compression_tips``). No-op for an empty id, an empty patch or a missing row
+        (the input id is returned). One transaction per key.
+        """
+        ...
+
     def advance_onboarding_run(self, session_id: SessionId, event: OnboardingEvent, *, now: float) -> OnboardingAdvance:
         """Apply one onboarding event to the run stored under :data:`ONBOARDING_RUN_KEY` at the session's compression tip and store the result, in one write: the update ``_transition`` in ``agent/onboarding_record.py`` makes.
 
@@ -1146,6 +1158,15 @@ class SessionRepository(Protocol):
 
     def session_ids_with_model_config_key(self, key: str) -> tuple[SessionId, ...]:
         """Ids whose ``model_config`` carries ``key``, newest ``started_at`` first."""
+        ...
+
+    def recent_model_config_key_ids(self, key: str, limit: int) -> tuple[SessionId, ...]:
+        """The newest *limit* LIVE sessions whose ``model_config`` carries ``key``, newest first.
+
+        Live excludes a compressed root: its continuation child holds the conversation (and carries the
+        key forward), so a listing built on this cannot return the same item twice. The bounded form
+        keeps a marker-backed listing from growing with history.
+        """
         ...
 
     def prompt_refresh_epoch(self, session_id: SessionId) -> int:

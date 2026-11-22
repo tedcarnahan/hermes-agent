@@ -622,6 +622,9 @@ def _resolve_single_delivery_target(
     if deliver_value == "local":
         return None
     if _inbox.is_inbox_token(deliver_value):
+        if (deliver_value or "").strip().lower().split(":", 1)[0] != _inbox.INBOX_PLATFORM:
+            logger.info("Job '%s': deliver=%s is a deprecated inbox alias; filing the run's session",
+                        job.get("id"), deliver_value)
         return _inbox.inbox_target()
     room_address = parse_room_deliver_token(deliver_value)
     if room_address is not None:

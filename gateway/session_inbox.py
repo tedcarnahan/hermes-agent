@@ -71,10 +71,12 @@ def _item(store, session_id):
 
 
 def _list(store, limit):
-    # The id scan is one query returning ids, newest run first; reading an item costs two more, so only
-    # the newest LIST_MAX are read. The unread badge counts that window (an unread run older than the
-    # newest LIST_MAX is not counted); the page is its newest *limit* by delivery time.
-    ids = store.sessions.session_ids_with_model_config_key(INBOX_MARKER)[:LIST_MAX]
+    # One bounded query returns the newest LIST_MAX live marked ids (the partial index
+    # ``idx_sessions_model_config_key_live`` makes it a walk over the marked rows, not a scan of every
+    # session, and a compressed root never appears: its continuation child carries the marker). Reading
+    # an item costs two more queries, so only the newest LIST_MAX are read; the unread badge counts that
+    # window. The page is its newest *limit* by delivery time.
+    ids = store.sessions.recent_model_config_key_ids(INBOX_MARKER, LIST_MAX)
     items = [item for sid in ids if (item := _item(store, sid)) is not None]
     items.sort(key=lambda item: item['delivered_at'], reverse=True)
     return {'items': items[:limit], 'unread_count': sum(item['unread'] for item in items)}

@@ -267,6 +267,20 @@ class SessionTitlesConfigMixin:
         if row is not None:
             self._set_config(row, self._merged(row["model_config"], patch))
 
+    def patch_model_config_at_tip(self, session_id: SessionId,
+                                  patch: Mapping[str, Optional[JsonValue]]) -> SessionId:
+        scope = self._backend.scope
+        if not session_id or not patch:
+            return session_id
+        from .lineage import compression_tip
+
+        with self._backend._lock:
+            tip = compression_tip(self._backend, scope, str(session_id))
+            row = self._table(scope).get(tip)
+            if row is not None:
+                self._set_config(row, self._merged(row["model_config"], patch))
+            return SessionId(tip)
+
     def advance_onboarding_run(self, session_id: SessionId, event: Any, *, now: float) -> OnboardingAdvance:
         scope = self._backend.scope
         from session_rules.onboarding_flow import Facts, apply, is_active
@@ -299,6 +313,16 @@ class SessionTitlesConfigMixin:
         rows = [row for row in self._table(scope).values() if row["model_config"].get(key) is not None]
         rows.sort(key=lambda row: (row["started_at"], row["session_id"]), reverse=True)
         return tuple(SessionId(row["session_id"]) for row in rows)
+
+    def recent_model_config_key_ids(self, key: str, limit: int) -> tuple[SessionId, ...]:
+        scope = self._backend.scope
+        if limit <= 0:
+            return ()
+        rows = [row for row in self._table(scope).values()
+                if row["model_config"].get(key) is not None
+                and (row.get("end_reason") or "") != "compression"]
+        rows.sort(key=lambda row: (row["started_at"], row["session_id"]), reverse=True)
+        return tuple(SessionId(row["session_id"]) for row in rows[:limit])
 
     def update_model(
         self,

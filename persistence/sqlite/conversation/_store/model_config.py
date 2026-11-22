@@ -39,3 +39,22 @@ def session_ids_with_model_config_key(db, key: str) -> list[str]:
             f"SELECT id FROM sessions WHERE {_sql_json_extract('model_config', '$.' + key)} IS NOT NULL "
             "ORDER BY started_at DESC").fetchall()
     return [row["id"] for row in rows]
+
+
+def recent_model_config_key_ids(db, key: str, limit: int) -> list[str]:
+    """The newest *limit* LIVE sessions whose model_config carries ``key``.
+
+    "Live" excludes a compressed root: its continuation child holds the conversation and the rotation
+    copies the key forward, so the root would otherwise be listed as a second, stale copy of the same
+    item. The bounded form exists because a listing keyed on a JSON marker grows with history: the
+    partial index ``idx_sessions_model_config_key_live`` makes this a walk over the keyed rows only,
+    and ``LIMIT`` keeps the transfer to one page.
+    """
+    if limit <= 0:
+        return []
+    with db._read_ctx() as conn:
+        rows = conn.execute(
+            f"SELECT id FROM sessions WHERE {_sql_json_extract('model_config', '$.' + key)} IS NOT NULL "
+            "AND COALESCE(end_reason, '') != 'compression' "
+            "ORDER BY started_at DESC LIMIT ?", (int(limit),)).fetchall()
+    return [row["id"] for row in rows]

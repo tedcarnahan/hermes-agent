@@ -727,6 +727,16 @@ unread badge and a notification when a new result lands. Nothing is copied: the 
 the run session, and its read state is the session's normal unread watermark on the backend,
 so every client sees the same unread items.
 
+**A run that compressed is filed at its live tip.** Rotation gives the conversation a continuation
+child and carries the inbox marker to it, so the item you open is the transcript that produced the
+preview, not the truncated segment the fire started in. The listing reads the newest live marked
+sessions under a cap, through an index on the marker, so its cost is the page rather than the
+profile's history.
+
+**`desktop-session[:<name>]` is a deprecated alias** for `inbox`, kept so a job written against the
+earlier per-invocation Desktop delivery design keeps firing. The name hint is retired: the item is the
+run's own session, titled by the runner.
+
 **Default.** A job created from a Desktop or Web chat that is not the canonical Bot Chat, with
 `deliver` omitted or `origin`, delivers to `inbox`. Before this, such a job wrote its result
 into the creating chat as a note. Jobs created in the Bot Chat keep Bot Chat delivery, and

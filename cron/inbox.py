@@ -24,13 +24,19 @@ INBOX_PLATFORM = "inbox"
 # ``model_config`` key of a filed run session; its presence is what makes the row an inbox item.
 INBOX_MARKER = "cron_inbox"
 PREVIEW_CHARS = 280
+# Deprecated spellings of the same target, kept so a job written against the per-invocation Desktop
+# delivery design (``desktop-session[:<name>]``) keeps firing after this Inbox lands. The name hint is
+# retired with the copy: the item is the run's own session, titled by the runner.
+LEGACY_INBOX_PLATFORMS = frozenset({"desktop-session"})
 # Creation sources whose non-Bot-Chat jobs default to the inbox (``gateway.session_policy.SURFACES``
 # labels). Data, not code: a client with its own inbox surface adds its label here.
 INBOX_DEFAULT_SOURCES = frozenset({"gui"})
 
 
 def is_inbox_token(part: str) -> bool:
-    return (part or "").strip().lower() == INBOX_PLATFORM
+    """``inbox``, or a deprecated ``desktop-session[:<name>]`` alias for it."""
+    name = (part or "").strip().lower().split(":", 1)[0]
+    return name == INBOX_PLATFORM or name in LEGACY_INBOX_PLATFORMS
 
 
 def inbox_target() -> dict:
@@ -63,8 +69,12 @@ def _in_bot_chat() -> bool:
         ids = {session_id, *(lineage_root or ())}
         return any(store.sessions.get_title(sid) == BOT_CHAT_TITLE for sid in ids)
     except Exception:  # health: allow BLE001 -- an unreadable title keeps the default delivery
-        logger.debug("inbox default: Bot Chat check failed for %s", session_id, exc_info=True)
-        return False
+        # Fail CLOSED: an unreadable title cannot prove this is NOT the canonical Bot Chat, and filing
+        # there would move a human conversation's turns into the Inbox. Keep the job's own target, which
+        # is what an old profile without the marker gets.
+        logger.warning("inbox default: Bot Chat check failed for %s; keeping the requested deliver target",
+                       session_id, exc_info=True)
+        return True
 
 
 def file_run(job: dict, content: str) -> Optional[str]:
@@ -75,10 +85,13 @@ def file_run(job: dict, content: str) -> Optional[str]:
     if not session_id:
         return "inbox: this run has no session to file"
     preview = " ".join(str(content or "").split())[:PREVIEW_CHARS]
-    store.sessions.patch_model_config(session_id, {INBOX_MARKER: {
+    # Write at the conversation's LIVE TIP, not at the id the run started with: a run that compressed
+    # continues on a child, and the scheduled output belongs to the transcript the user will open. The
+    # tip is returned so the unread watermark lands on the same row.
+    tip = store.sessions.patch_model_config_at_tip(session_id, {INBOX_MARKER: {
         "job_id": job.get("id"), "job_name": job.get("name") or job.get("id"),
         "delivered_at": time.time(), "preview": preview}})
-    store.sessions.set_read(session_id, False)
+    store.sessions.set_read(tip, False)
     return None
 
 
