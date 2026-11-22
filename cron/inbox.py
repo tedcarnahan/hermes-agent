@@ -63,8 +63,12 @@ def _in_bot_chat() -> bool:
         ids = {session_id, *(lineage_root or ())}
         return any(store.sessions.get_title(sid) == BOT_CHAT_TITLE for sid in ids)
     except Exception:  # health: allow BLE001 -- an unreadable title keeps the default delivery
-        logger.debug("inbox default: Bot Chat check failed for %s", session_id, exc_info=True)
-        return False
+        # Fail CLOSED: an unreadable title cannot prove this is NOT the canonical Bot Chat, and filing
+        # there would move a human conversation's turns into the Inbox. Keep the job's own target, which
+        # is what an old profile without the marker gets.
+        logger.warning("inbox default: Bot Chat check failed for %s; keeping the requested deliver target",
+                       session_id, exc_info=True)
+        return True
 
 
 def file_run(job: dict, content: str) -> Optional[str]:
